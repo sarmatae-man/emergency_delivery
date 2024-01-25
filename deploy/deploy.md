@@ -112,7 +112,7 @@ roslaunch px4 mavros_posix_sitl.launch \
 
 ![img](img/gazebo.png)
 
-Скрипт **../emergency_delivery/scriptsstart_monitoring.sh** запускает передвижение аппарата с камерой и лазерным дальномером (в отдельном окне необходимо инициализировать окружение):
+Скрипт **../emergency_delivery/scripts/start_monitoring.sh** запускает передвижение аппарата с камерой и лазерным дальномером (в отдельном окне необходимо инициализировать окружение):
 
 ![img](img/mission.png)
 
