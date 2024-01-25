@@ -1,0 +1,224 @@
+####################
+# Установка Docker
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+# Официальный GPG-ключ в Docker
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+# Репозиторий Docker в источники Apt
+echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+"$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+# Устанавливаем последнию версию
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# Проверка запуском
+sudo docker run hello-world
+# Управление Docker от имени пользователя, который не является root
+sudo groupadd docker
+sudo usermod -aG docker $USER
+# Активировать изменения (или перелогинится)
+newgrp docker
+# Проверка
+docker run hello-world
+# Включить автозапуск
+sudo systemctl enable docker.service
+sudo systemctl enable containerd.service
+
+#####################
+# Установка Docker Compose (при установке см. свежую версию, здесь v2.23.0)
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+# Проверка установки
+docker-compose --version
+
+#####################
+# Установка ROS
+# добавляем sources.list-директорию файл с сервером, где хранятся пакеты для требуемой версии ROS.
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo apt install curl
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+sudo apt update
+# непосредственно установка ROS
+sudo apt install ros-noetic-desktop-full
+# Установка и инициализация rosdep
+sudo apt install python3-rosdep
+sudo rosdep init
+rosdep update
+# Создание рабочего пространства для проектов
+mkdir -p /home/$USER/catkin_ws/src
+cd /home/$USER/catkin_ws/src
+catkin_init_workspace
+# Создание проекта
+catkin_create_pkg <pkg_name>
+# После создания/добавления проекта, сборка (если необходимо собрать только конкретный проект, указать его имя)
+cd /home/$USER/catkin_ws && catkin build <pkg_name>
+
+###############################################
+# Для клонирования репозитария и закачивания git & wget
+sudo apt-get install -y git wget
+
+###############################################
+# Клонируем репозитарий PX4-Autopilot
+git clone https://github.com/PX4/PX4-Autopilot.git
+cd PX4-Autopilot
+git checkout v1.13.3
+/bin/bash Tools/setup/ubuntu.sh
+# непосредственно сборка
+DONT_RUN=1 make px4_sitl_default gazebo -j$(nproc)
+
+# флаг для OFFBOARD при программной работе, прописываем в модель аппарата с которым будем работать
+cd /home/$USER/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/airframes
+echo "param set COM_RCL_EXCEPT 4" >> 10016_iris
+
+###############################################
+# Установка mavros
+sudo apt-get install ros-noetic-mavros -y
+sudo apt-get install ros-noetic-mavros-extras -y
+# закачивать лучше через VPN, может по определённое зоне IP адресов не отдать
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+sudo bash ./install_geographiclib_datasets.sh -y
+sudo rm install_geographiclib_datasets.sh
+###############################################
+
+# Задаём окружение ROS, PX-4, модели(ей) Gazepo
+echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+echo "source /home/$USER/PX4-Autopilot/Tools/setup_gazebo.bash /home/$USER/PX4-Autopilot /home/$USER/PX4-Autopilot/build/px4_sitl_default" >> ~/.bashrc
+
+# После инициализации рабочего пространства и сборки проекта(ов) catkin_ws
+# echo "/home/$USER/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+export ROS_PACKAGE_PATH=/opt/ros/noetic/share:/home/$USER/PX4-Autopilot:/home/$USER/PX4-Autopilot/Tools/sitl_gazebo
+
+# Экспорт пути для своей модели(ей), по умолчанию задаётся в скрипте:
+# /home/$USER/PX4-Autopilot/Tools/setup_gazebo.bash
+# export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:${SRC_DIR}/Tools/sitl_gazebo/models
+# К своей модели можно в скрипте при сборке задавать
+# export GAZEBO_MODEL_PATH=/module_5/sim/models
+
+########################################################################
+## QGroundControl если нужен, как практика показывает must have 
+# https://docs.qgroundcontrol.com/master/en/qgc-user-guide/getting_started/download_and_install.html
+sudo usermod -a -G dialout $USER
+sudo apt-get remove modemmanager -y
+sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
+sudo apt install libqt5gui5 -y
+sudo apt install libfuse2 -y
+# качаем QGroundControl
+wget https://d176tv9ibo4jno.cloudfront.net/latest/QGroundControl.AppImage
+chmod +x ./QGroundControl.AppImage
+# запускаем (or double click)
+./QGroundControl.AppImage  
+
+#########################################################################
+## в новом терминале (или после выполнения: source ~/.bashrc)  запускаем:
+roslaunch px4 mavros_posix_sitl.launch
+
+# запустится PX4 с gazebo и на экране "пустой мир" с аппаратом
+# для проверки в отдельном окне терминала выполнить 
+# команды: arming
+rosservice call /mavros/cmd/arming "value: true"
+# takeoff, время между командами должно быть небольшое
+rosservice call /mavros/set_mode "base_mode: 0
+custom_mode: 'AUTO.TAKEOFF'"
+# аппарат должен взлететь и зависнуть
+
+##########################################################################################
+#### ниже script на питоне для теста программного взлёта из манула по PX4:
+# https://docs.px4.io/main/en/ros/mavros_offboard_python.html
+# запуск cкрипта или p
+python3 <имя файла.py>
+# или
+sudo chmod +x <имя файла.py>
+./<имя файла.py>
+# аппарат взлетает на 2 метра и зависает
+###########################################################################################
+###########################################################################################
+
+#! /usr/bin/env python3
+
+import rospy
+from geometry_msgs.msg import PoseStamped
+from mavros_msgs.msg import State
+from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest
+
+current_state = State()
+def state_cb(msg):
+    global current_state
+    current_state = msg
+
+if __name__ == "__main__":
+    rospy.init_node("offb_node_py")
+    state_sub = rospy.Subscriber("mavros/state", State, callback = state_cb)
+    local_pos_pub = rospy.Publisher("mavros/setpoint_position/local", PoseStamped, queue_size=10)
+    rospy.wait_for_service("/mavros/cmd/arming")
+    arming_client = rospy.ServiceProxy("mavros/cmd/arming", CommandBool)
+    rospy.wait_for_service("/mavros/set_mode")
+    set_mode_client = rospy.ServiceProxy("mavros/set_mode", SetMode)
+    # Setpoint publishing MUST be faster than 2Hz
+    rate = rospy.Rate(20)
+    # Wait for Flight Controller connection
+    while(not rospy.is_shutdown() and not current_state.connected):
+        rate.sleep()
+    pose = PoseStamped()
+    pose.pose.position.x = 0; pose.pose.position.y = 0; pose.pose.position.z = 2
+    # Send a few setpoints before starting
+    for i in range(100):
+        if(rospy.is_shutdown()):
+            break
+
+        local_pos_pub.publish(pose)
+        rate.sleep()
+    offb_set_mode = SetModeRequest()
+    offb_set_mode.custom_mode = 'OFFBOARD'
+    arm_cmd = CommandBoolRequest()
+    arm_cmd.value = True
+    last_req = rospy.Time.now()
+
+    while(not rospy.is_shutdown()):
+        if(current_state.mode != "OFFBOARD" and (rospy.Time.now() - last_req) > rospy.Duration(5.0)):
+            if(set_mode_client.call(offb_set_mode).mode_sent == True):
+                rospy.loginfo("OFFBOARD enabled")
+
+            last_req = rospy.Time.now()
+        else:
+            if(not current_state.armed and (rospy.Time.now() - last_req) > rospy.Duration(5.0)):
+                if(arming_client.call(arm_cmd).success == True):
+                    rospy.loginfo("Vehicle armed")
+
+                last_req = rospy.Time.now()
+
+        local_pos_pub.publish(pose)
+
+        rate.sleep()
+        
+#######################################################################################################
+#######################################################################################################
+#######################################################################################################
+# For advanced
+# Eсли есть своя модель то запускаем roslaunch px4 mavros_posix_sitl.launch с параметрами,
+# текст скрипта ниже
+# Cвою модель нужно либо скопировать с базовой (либо "собирать"):
+cd /home/$USER/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/airframes
+# где "new_uav_model" имя новой модели:
+cp 10016_iris 10016_new_uav_model
+echo "param set COM_RCL_EXCEPT 4" >> 10016_new_uav_model
+
+#############################################################################################
+#!/bin/bash
+# Setup environment
+# Путь к автопилоту
+PX4_DIR="/home/$USER/PX4-Autopilot"
+# Путь к модели в котором должен быть каталог worlds с "миром" или убрать последнею строку скрипта. 
+MODEL_FILES="/home/$USER/catkin_ws/src/models"
+# Имя модели
+MODEL="new_uav_model"
+
+export ROS_PACKAGE_PATH=/opt/ros/noetic/share:/$PX4_DIR:/$PX4_DIR/Tools/sitl_gazebo
+export GAZEBO_MODEL_PATH=/home/$USER/catkin_ws/src/emergency_delivery/uav_robot_model
+
+roslaunch $PX4_DIR/launch/mavros_posix_sitl.launch \
+          vehicle:=$MODEL \
+          sdf:=$MODEL_FILES/$MODEL/$MODEL.sdf \
+          world:=$MODEL_FILESR/worlds/empty.world
+

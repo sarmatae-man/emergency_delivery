@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="emergency_delivery" type="extra_delivery_node.py" name="extra_delivery_node" output="screen">
+	</node> 
+</launch>

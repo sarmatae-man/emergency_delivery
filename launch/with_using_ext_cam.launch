@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="emergency_delivery" type="aruco_node.py" name="extra_land" output="screen">
+	</node>
+	<node pkg="emergency_delivery" type="extra_delivery_node.py" name="extra_delivery_node" output="screen">
+	</node> 
+</launch>
