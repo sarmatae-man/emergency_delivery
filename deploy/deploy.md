@@ -37,6 +37,8 @@ sudo echo "param set COM_RCL_EXCEPT 4" >> 10016_uav_ex_dev
 # Загрузка репозитария для получения файлов для сборки имитируемой модели
 cd /home/$USER/catkin_ws/src
 git clone https://github.com/sarmatae-man/emergency_delivery.git
+# Устанавливаем права для запуска из загруженной папки
+sudo chmod -R +x /home/$USER/catkin_ws/src/emergency_delivery
 ```
 
  Для взаимодействия автопилота и компьютера установка mavros. Этот пакет является связующим звеном между автопилотом и нашей системой. Mavros транслирует mavlink сообщения в ROS топики и в обратном порядке. Таким образом мы подключаем автопилот к экосистеме ROS.
