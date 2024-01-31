@@ -20,9 +20,17 @@ def detect_marker_position(frame, marker_size, camera_matrix, dist_coeffs):
     """
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+    
+    ###################################
+    # Ecли не работает этот код:
+    aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)    
     parameters = aruco.DetectorParameters()
+    ####################################
+    # Расскрыть комменты в этом, а выше закомментировать
+    # aruco_dict = aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+    # parameters = aruco.DetectorParameters_create()
+    ####################################
+    
     corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 
     if ids is not None:
